@@ -1,29 +1,35 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import './index.css';
 import './App.css';
 import TopBar from './components/TopBar';
 import FilterPanel from './components/FilterPanel';
 import RankingTable from './components/RankingTable';
 import { theme } from './utils/theme';
-import { SAMPLE_ROWS } from './utils/sampleData';
+import { SP500_SYMBOLS } from './data/sp500Symbols';
+import { getBatches, sleep } from './utils/batching';
+import { fetchQuote, fetchProfile, normalizeRow } from './utils/api';
+import { exportRowsToExcel } from './utils/exportExcel';
 
 /**
  * App shell for S&P Ranking UI.
  * - Ocean Professional theme styling
  * - Top bar with title and formula selector
  * - Left filter/export panel
- * - Main ranking table scaffold with sample data
- * - Finnhub API key is read from environment for future use
+ * - Main ranking table with latest values (no date range)
+ * - Finnhub API key is read from environment
  */
 
 // PUBLIC_INTERFACE
 function App() {
   /** Basic UI state */
   const [formula, setFormula] = useState('Buffett'); // Buffett | Cramer
-  const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [sector, setSector] = useState('All');
   const [batchSize, setBatchSize] = useState(50);
   const [search, setSearch] = useState('');
+  const [allRows, setAllRows] = useState([]); // merged results across batches
+  const [busy, setBusy] = useState(false);
+  const [progressText, setProgressText] = useState('');
+  const [warning, setWarning] = useState('');
 
   /** Read Finnhub API key (if provided). Do not fail if missing. */
   const FINNHUB_API_KEY =
@@ -31,33 +37,117 @@ function App() {
     process.env.REACT_APP_REACT_APP_FINNHUB_API_KEY ||
     '';
 
-  /** Placeholder: computed rows based on filters/search */
-  const rows = useMemo(() => {
+  useEffect(() => {
+    if (!FINNHUB_API_KEY) {
+      setWarning('Missing REACT_APP_FINNHUB_API_KEY. Fetch is disabled.');
+    } else {
+      setWarning('');
+    }
+  }, [FINNHUB_API_KEY]);
+
+  /** Compute filtered rows based on search/sector */
+  const visibleRows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return SAMPLE_ROWS.filter((r) => {
-      const matchSearch =
-        !q ||
-        r.symbol.toLowerCase().includes(q) ||
-        r.name.toLowerCase().includes(q);
-      const matchSector =
-        sector === 'All' || r.sector.toLowerCase() === sector.toLowerCase();
-      return matchSearch && matchSector;
+    return allRows
+      .filter((r) => {
+        const matchSearch =
+          !q ||
+          r.symbol.toLowerCase().includes(q) ||
+          (r.name || '').toLowerCase().includes(q);
+        const matchSector =
+          sector === 'All' ||
+          (r.sector || '').toLowerCase() === sector.toLowerCase();
+        return matchSearch && matchSector;
+      })
+      .sort((a, b) => b.score - a.score);
+  }, [search, sector, allRows]);
+
+  async function fetchBatch(symbols, apiKey, formulaSel) {
+    // Fetch quotes in parallel; profile optionally with lightweight handling
+    const quotePromises = symbols.map((s) =>
+      fetchQuote(s, apiKey).then(
+        (q) => ({ s, ok: true, q }),
+        (err) => ({ s, ok: false, err })
+      )
+    );
+
+    const profilePromises = symbols.map((s) =>
+      fetchProfile(s, apiKey).then(
+        (p) => ({ s, ok: true, p }),
+        () => ({ s, ok: false, p: {} }) // non-fatal if fails
+      )
+    );
+
+    const [quotes, profiles] = await Promise.all([
+      Promise.allSettled(quotePromises),
+      Promise.allSettled(profilePromises),
+    ]);
+
+    const quoteMap = new Map();
+    quotes.forEach((res) => {
+      if (res.status === 'fulfilled') {
+        const { s, ok, q } = res.value;
+        if (ok) quoteMap.set(s, q);
+      }
     });
-  }, [search, sector]);
 
-  /** Placeholder handlers */
-  const handleExport = () => {
-    // Future: trigger backend export to Excel and download
-    // Currently disabled in UI, keep here for completeness
-    // eslint-disable-next-line no-console
-    console.log('Export requested (stub). Formula:', formula);
-  };
+    const profileMap = new Map();
+    profiles.forEach((res) => {
+      if (res.status === 'fulfilled') {
+        const { s, p } = res.value;
+        profileMap.set(s, p || {});
+      }
+    });
 
-  const handleRefresh = () => {
-    // Future: integrate data fetching using FINNHUB_API_KEY in batches
-    // eslint-disable-next-line no-console
-    console.log('Refresh requested (stub). Key present?', !!FINNHUB_API_KEY);
-  };
+    const rows = symbols.map((s) => {
+      const q = quoteMap.get(s) || {};
+      const p = profileMap.get(s) || {};
+      return normalizeRow(s, q, p, formulaSel);
+    });
+
+    return rows;
+  }
+
+  async function handleRefresh() {
+    if (!FINNHUB_API_KEY) {
+      setWarning('Missing REACT_APP_FINNHUB_API_KEY. Fetch is disabled.');
+      return;
+    }
+    setBusy(true);
+    setAllRows([]);
+    setProgressText('Starting batch fetch…');
+
+    try {
+      const batches = getBatches(SP500_SYMBOLS, Math.max(1, Number(batchSize) || 50));
+      const totalBatches = batches.length;
+      const merged = [];
+
+      for (let i = 0; i < totalBatches; i += 1) {
+        const chunk = batches[i];
+        setProgressText(`Fetching batch ${i + 1}/${totalBatches} (${chunk.length} symbols)…`);
+        // fetch one batch
+        const rows = await fetchBatch(chunk, FINNHUB_API_KEY, formula);
+        merged.push(...rows);
+        setAllRows([...merged]); // update state to show progressive results
+        // small delay to reduce pressure on API/rate limits
+        await sleep(300);
+      }
+
+      setProgressText(`Completed ${totalBatches} batches.`);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err);
+      setWarning(`Fetch error: ${err.message || 'Unknown error'}`);
+    } finally {
+      setBusy(false);
+      setTimeout(() => setProgressText(''), 1500);
+    }
+  }
+
+  function handleExport() {
+    if (!allRows.length) return;
+    exportRowsToExcel(allRows, 'sp-ranking-latest.xlsx');
+  }
 
   return (
     <div
@@ -72,6 +162,8 @@ function App() {
         formula={formula}
         onFormulaChange={setFormula}
         onRefresh={handleRefresh}
+        busy={busy}
+        progressText={progressText}
       />
 
       <div
@@ -85,17 +177,17 @@ function App() {
         }}
       >
         <FilterPanel
-          dateRange={dateRange}
-          onDateRangeChange={setDateRange}
           sector={sector}
           onSectorChange={setSector}
           batchSize={batchSize}
           onBatchSizeChange={setBatchSize}
           onExport={handleExport}
-          exportDisabled
+          exportDisabled={!allRows.length}
           search={search}
           onSearchChange={setSearch}
           theme={theme}
+          progressText={progressText}
+          busy={busy}
         />
 
         <div
@@ -107,9 +199,10 @@ function App() {
             border: `1px solid ${theme.colors.border}`,
           }}
         >
-          <RankingTable rows={rows} theme={theme} />
+          <RankingTable rows={visibleRows} theme={theme} />
           <div style={{ marginTop: 10, fontSize: 12, color: theme.colors.muted }}>
-            Using sample data. Finnhub key detected: {FINNHUB_API_KEY ? 'Yes' : 'No'}
+            {FINNHUB_API_KEY ? 'Finnhub key detected.' : 'Finnhub key missing.'}
+            {warning ? ` — ${warning}` : ''}
           </div>
         </div>
       </div>

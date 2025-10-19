@@ -3,16 +3,14 @@ import React from 'react';
 /**
  * Left panel containing:
  * - Search
- * - Date range (from/to)
  * - Sector select
  * - Batch size input
- * - Export to Excel (disabled for now)
+ * - Export to Excel
+ * Shows minimal UI feedback (progress text) and disables controls when busy.
  */
 
 // PUBLIC_INTERFACE
 function FilterPanel({
-  dateRange,
-  onDateRangeChange,
   sector,
   onSectorChange,
   batchSize,
@@ -22,6 +20,8 @@ function FilterPanel({
   search,
   onSearchChange,
   theme,
+  progressText = '',
+  busy = false,
 }) {
   const panelStyle = {
     background: theme.colors.surface,
@@ -32,6 +32,7 @@ function FilterPanel({
     height: 'fit-content',
     position: 'sticky',
     top: 76,
+    opacity: busy ? 0.9 : 1,
   };
 
   const labelStyle = { display: 'block', fontSize: 12, color: theme.colors.muted, marginBottom: 6 };
@@ -56,25 +57,8 @@ function FilterPanel({
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             style={fieldStyle}
+            disabled={busy}
           />
-        </div>
-
-        <div>
-          <label style={labelStyle}>Date Range</label>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <input
-              type="date"
-              value={dateRange.from}
-              onChange={(e) => onDateRangeChange({ ...dateRange, from: e.target.value })}
-              style={fieldStyle}
-            />
-            <input
-              type="date"
-              value={dateRange.to}
-              onChange={(e) => onDateRangeChange({ ...dateRange, to: e.target.value })}
-              style={fieldStyle}
-            />
-          </div>
         </div>
 
         <div>
@@ -83,6 +67,7 @@ function FilterPanel({
             value={sector}
             onChange={(e) => onSectorChange(e.target.value)}
             style={fieldStyle}
+            disabled={busy}
           >
             <option>All</option>
             <option>Technology</option>
@@ -109,34 +94,41 @@ function FilterPanel({
             value={batchSize}
             onChange={(e) => onBatchSizeChange(Number(e.target.value))}
             style={fieldStyle}
+            disabled={busy}
           />
           <div style={{ fontSize: 12, color: theme.colors.muted, marginTop: 6 }}>
-            Used for future API batching to avoid timeouts.
+            Batching helps avoid rate limits/timeouts.
           </div>
         </div>
 
         <button
           onClick={onExport}
-          disabled={exportDisabled}
+          disabled={exportDisabled || busy}
           style={{
             marginTop: 6,
             padding: '10px 12px',
             borderRadius: theme.radius.md,
             border: `1px solid ${theme.colors.secondary}`,
-            background: exportDisabled
+            background: exportDisabled || busy
               ? theme.colors.disabledSurface
               : `linear-gradient(135deg, ${theme.colors.secondary} 0%, ${theme.colors.secondarySoft} 100%)`,
-            color: exportDisabled ? theme.colors.disabledText : '#111827',
+            color: exportDisabled || busy ? theme.colors.disabledText : '#111827',
             fontWeight: 700,
-            cursor: exportDisabled ? 'not-allowed' : 'pointer',
+            cursor: exportDisabled || busy ? 'not-allowed' : 'pointer',
             boxShadow: theme.elevation.sm,
           }}
-          aria-disabled={exportDisabled}
-          aria-label="Export to Excel (disabled)"
-          title={exportDisabled ? 'Export will be enabled after backend integration' : 'Export to Excel'}
+          aria-disabled={exportDisabled || busy}
+          aria-label="Export to Excel"
+          title={exportDisabled ? 'Export is disabled until data is loaded' : 'Export to Excel'}
         >
           Export to Excel
         </button>
+
+        {progressText && (
+          <div style={{ fontSize: 12, color: theme.colors.muted, marginTop: 6 }}>
+            {progressText}
+          </div>
+        )}
       </div>
     </aside>
   );

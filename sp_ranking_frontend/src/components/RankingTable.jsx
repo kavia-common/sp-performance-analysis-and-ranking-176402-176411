@@ -15,6 +15,8 @@ function RankingTable({ rows, theme }) {
     whiteSpace: 'nowrap',
   };
 
+  const toNum = (v) => (Number.isFinite(v) ? v : 0);
+
   return (
     <div style={{ overflowX: 'auto' }}>
       <table
@@ -47,20 +49,25 @@ function RankingTable({ rows, theme }) {
               color: v > 0 ? theme.colors.positive : v < 0 ? theme.colors.negative : theme.colors.text,
               fontWeight: 600,
             });
+            const s = toNum(r.score);
+            const p = toNum(r.price);
+            const d1 = toNum(r.change1D);
+            const w1 = toNum(r.change1W);
+            const m1 = toNum(r.change1M);
             return (
               <tr key={r.symbol} style={{ background: 'transparent' }}>
                 <td style={{ ...thTdBase, fontWeight: 700 }}>{r.symbol}</td>
                 <td style={{ ...thTdBase, color: theme.colors.subtleText }}>{r.name}</td>
-                <td style={{ ...thTdBase }}>{r.score.toFixed(2)}</td>
-                <td style={{ ...thTdBase }}>${r.price.toFixed(2)}</td>
-                <td style={{ ...thTdBase, ...changeStyle(r.change1D) }}>
-                  {r.change1D.toFixed(2)}%
+                <td style={{ ...thTdBase }}>{s.toFixed(2)}</td>
+                <td style={{ ...thTdBase }}>${p.toFixed(2)}</td>
+                <td style={{ ...thTdBase, ...changeStyle(d1) }}>
+                  {d1.toFixed(2)}%
                 </td>
-                <td style={{ ...thTdBase, ...changeStyle(r.change1W) }}>
-                  {r.change1W.toFixed(2)}%
+                <td style={{ ...thTdBase, ...changeStyle(w1) }}>
+                  {w1.toFixed(2)}%
                 </td>
-                <td style={{ ...thTdBase, ...changeStyle(r.change1M) }}>
-                  {r.change1M.toFixed(2)}%
+                <td style={{ ...thTdBase, ...changeStyle(m1) }}>
+                  {m1.toFixed(2)}%
                 </td>
               </tr>
             );
