@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .db import init_db
 from .routes.health import router as health_router
+from .routes.symbols import router as symbols_router
+from .routes.rankings import router as rankings_router
 
 openapi_tags = [
     {"name": "Health", "description": "Service health and readiness probes."},
@@ -33,6 +35,8 @@ def create_app() -> FastAPI:
 
     # Routers
     app.include_router(health_router)
+    app.include_router(symbols_router)
+    app.include_router(rankings_router)
 
     @app.on_event("startup")
     async def on_startup():
