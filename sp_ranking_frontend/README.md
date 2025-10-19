@@ -1,82 +1,67 @@
-# Lightweight React Template for KAVIA
+# S&P Ranking Frontend (Ocean Professional)
 
-This project provides a minimal React template with a clean, modern UI and minimal dependencies.
+A lightweight React dashboard to view and manage S&P rankings based on performance data and formulas inspired by Warren Buffett and Jim Cramer.
 
 ## Features
 
-- **Lightweight**: No heavy UI frameworks - uses only vanilla CSS and React
-- **Modern UI**: Clean, responsive design with KAVIA brand styling
-- **Fast**: Minimal dependencies for quick loading times
-- **Simple**: Easy to understand and modify
+- Dashboard layout with:
+  - Top bar: Title and Formula selector (Buffett, Cramer, Both)
+  - Left panel: Actions toolbar (Run, Refresh, Export) and Filters (Sectors, Market Cap, Completeness)
+  - Main area: Ranking table with client-side sorting, server-friendly pagination and parameters
+- Ocean Professional theme (blue primary, amber accents, subtle shadows, gradients)
+- API client reads base URL from `REACT_APP_BACKEND_BASE_URL`
+- Graceful handling when backend is not available
+- CSV export fallback when backend export endpoint is not available
 
-## Getting Started
+## Quick Start
 
-In the project directory, you can run:
+1) Install dependencies
+   npm install
 
-### `npm start`
+2) Configure environment
+   - Copy `.env.example` to `.env`
+   - Set the backend API base URL (no trailing slash). Example:
+     REACT_APP_BACKEND_BASE_URL=http://localhost:8000
 
-Runs the app in development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+3) Start the app
+   npm start
+   Open http://localhost:3000
 
-### `npm test`
+## API Configuration
 
-Launches the test runner in interactive watch mode.
+The frontend uses the following endpoints:
+- GET /health
+- GET /symbols
+- POST /rankings/run
+- GET /rankings/status?run_id=...
+- GET /rankings/latest?{page,pageSize,sortBy,sortDir,formula_mode,sectors,marketCapMin,marketCapMax,completeness}
+- GET /rankings/export?run_id=...&format=excel|csv  (download URL)
 
-### `npm run build`
+Set `REACT_APP_BACKEND_BASE_URL` in `.env` to point to your backend. The value is read at build/start time.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Development Notes
 
-## Customization
+- No heavy UI libraries; styles are in `src/App.css`
+- Components:
+  - `src/components/FormulaSelector.jsx`
+  - `src/components/FiltersPanel.jsx`
+  - `src/components/Toolbar.jsx`
+  - `src/components/RankingTable.jsx`
+- Hook:
+  - `src/hooks/useRankingData.js`
+- API:
+  - `src/api/client.js`
+- CSV utility:
+  - `src/utils/csv.js`
 
-### Colors
+If the backend is unavailable, the UI will indicate errors and disable export (or use CSV fallback when data exists).
 
-The main brand colors are defined as CSS variables in `src/App.css`:
+## Scripts
 
-```css
-:root {
-  --kavia-orange: #E87A41;
-  --kavia-dark: #1A1A1A;
-  --text-color: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.7);
-  --border-color: rgba(255, 255, 255, 0.1);
-}
-```
+- npm start
+- npm test
+- npm run build
 
-### Components
+## License
 
-This template uses pure HTML/CSS components instead of a UI framework. You can find component styles in `src/App.css`. 
-
-Common components include:
-- Buttons (`.btn`, `.btn-large`)
-- Container (`.container`)
-- Navigation (`.navbar`)
-- Typography (`.title`, `.subtitle`, `.description`)
-
-## Learn More
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+MIT
