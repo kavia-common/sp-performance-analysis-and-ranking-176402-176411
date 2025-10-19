@@ -24,6 +24,8 @@ Implemented features:
 3) Configure environment
    - Copy .env.example to .env
    - Set FINNHUB_API_KEY and adjust values as needed (DB_URL, BACKEND_PORT, ALLOWED_ORIGINS, etc.)
+   - For local frontend on http://localhost:3000 ensure:
+     ALLOWED_ORIGINS=http://localhost:3000
 
 4) Initialize database
    - On first run, the backend will initialize the SQLite DB from db/schema.sql automatically.
@@ -36,14 +38,17 @@ Implemented features:
    http://localhost:8000/docs
    http://localhost:8000/redoc
 
-## Endpoints
+## End-to-End with Frontend
 
-- GET /health
-- GET /symbols
-- POST /rankings/run { "formula_mode": "buffett"|"cramer"|"both" }
-- GET /rankings/status?run_id=...
-- GET /rankings/latest?page=&pageSize=&sortBy=&sortDir=&formula_mode=&sectors=&marketCapMin=&marketCapMax=&completeness=
-- GET /rankings/export?run_id=...&format=excel|csv
+- Frontend expects backend at REACT_APP_BACKEND_BASE_URL (e.g., http://localhost:8000)
+- Verify CORS: ALLOWED_ORIGINS includes http://localhost:3000
+- Endpoints used by frontend:
+  - GET /health
+  - GET /symbols
+  - POST /rankings/run
+  - GET /rankings/status?run_id=...
+  - GET /rankings/latest?page=&pageSize=&sortBy=&sortDir=&formula_mode=&sectors=&marketCapMin=&marketCapMax=&completeness=
+  - GET /rankings/export?run_id=...&format=excel|csv
 
 ### /symbols
 Returns:

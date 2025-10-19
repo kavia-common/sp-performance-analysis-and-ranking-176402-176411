@@ -1,4 +1,4 @@
-const BASE_URL = (process.env.REACT_APP_BACKEND_BASE_URL || '').replace(/\/+$/, '');
+const BASE_URL = (process.env.REACT_APP_BACKEND_BASE_URL || '').replace(/\/*$/, '');
 
 // Internal helper for fetch
 async function http(path, options = {}) {
@@ -12,13 +12,14 @@ async function http(path, options = {}) {
   };
   const res = await fetch(url, opts);
   // Allow 204/empty
-  const isJson = res.headers.get('content-type')?.includes('application/json');
+  const ctype = res.headers.get('content-type') || '';
+  const isJson = ctype.includes('application/json');
   if (!res.ok) {
     let message = `Request failed (${res.status})`;
     try {
       if (isJson) {
         const errData = await res.json();
-        message = errData?.message || message;
+        message = errData?.detail || errData?.message || message;
       } else {
         const txt = await res.text();
         message = txt || message;
@@ -48,7 +49,7 @@ export async function getSymbols() {
 
 // PUBLIC_INTERFACE
 export async function postRun(formula_mode = 'both', options = {}) {
-  /** Trigger a ranking run. Returns { run_id }. */
+  /** Trigger a ranking run. Returns { run_id, status }. */
   return http('/rankings/run', {
     method: 'POST',
     body: JSON.stringify({ formula_mode, options }),
@@ -57,7 +58,7 @@ export async function postRun(formula_mode = 'both', options = {}) {
 
 // PUBLIC_INTERFACE
 export async function getStatus(run_id) {
-  /** Get status of a run. Returns { run_id, status, progress, message }. */
+  /** Get status of a run. Returns { run_id, status, progress, message, formula_mode }. */
   const qp = run_id ? `?run_id=${encodeURIComponent(run_id)}` : '';
   return http(`/rankings/status${qp}`, { method: 'GET' });
 }
@@ -67,6 +68,7 @@ export async function getLatest(params = {}) {
   /**
    * Get latest ranking results with optional pagination/sorting/filtering.
    * params: { page, pageSize, sortBy, sortDir, formula_mode, sectors, marketCapMin, marketCapMax, completeness }
+   * Note: backend expects exact param names as listed above.
    */
   const qs = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {

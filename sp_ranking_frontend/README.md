@@ -27,17 +27,41 @@ A lightweight React dashboard to view and manage S&P rankings based on performan
    npm start
    Open http://localhost:3000
 
-## API Configuration
+## Backend Integration
 
-The frontend uses the following endpoints:
+The frontend expects the following backend endpoints and parameters:
+
 - GET /health
 - GET /symbols
 - POST /rankings/run
-- GET /rankings/status?run_id=...
-- GET /rankings/latest?{page,pageSize,sortBy,sortDir,formula_mode,sectors,marketCapMin,marketCapMax,completeness}
-- GET /rankings/export?run_id=...&format=excel|csv  (download URL)
+  - body: { "formula_mode": "buffett" | "cramer" | "both", "options": { ... } }
+  - returns: { "run_id": number, "status": "running" }
+- GET /rankings/status?run_id=<id>
+  - returns: { "run_id": number, "status": "running"|"completed"|"failed"|"queued", "progress": number, "message": string, "formula_mode": string }
+- GET /rankings/latest
+  - query params: page, pageSize, sortBy, sortDir, formula_mode, sectors (repeatable), marketCapMin, marketCapMax, completeness
+  - returns: { "items": [...], "total": number, "run_id": number }
+- GET /rankings/export?run_id=<id>&format=excel|csv
+  - triggers a file download
 
-Set `REACT_APP_BACKEND_BASE_URL` in `.env` to point to your backend. The value is read at build/start time.
+Set `REACT_APP_BACKEND_BASE_URL` in `.env` to point to your backend. The value is read at build/start time. Ensure the backend CORS variable `ALLOWED_ORIGINS` includes `http://localhost:3000` during local development.
+
+## End-to-End Usage
+
+1) Start backend (FastAPI):
+   - See backend README; typical:
+     uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+
+2) Start frontend:
+   - npm start
+   - Visit http://localhost:3000
+
+3) In the UI:
+   - Select a formula (top-right)
+   - Optionally select filters (left panel)
+   - Click "Run" to trigger a new ranking run
+   - Status will update while running; when completed, results load automatically
+   - Use Export CSV/Excel to download result files (Excel requires backend export endpoint)
 
 ## Development Notes
 

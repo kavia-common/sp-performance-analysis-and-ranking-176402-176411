@@ -48,6 +48,7 @@ export default function useRankingData() {
     setIsLoading(true);
     setError('');
     try {
+      // Align param names with backend expectations
       const params = {
         page,
         pageSize,
@@ -56,15 +57,15 @@ export default function useRankingData() {
         formula_mode: formulaMode,
       };
       if (filters.sectors?.length) params.sectors = filters.sectors;
-      if (filters.marketCapMin) params.marketCapMin = filters.marketCapMin;
-      if (filters.marketCapMax) params.marketCapMax = filters.marketCapMax;
-      if (filters.completeness) params.completeness = filters.completeness;
+      if (filters.marketCapMin !== '') params.marketCapMin = filters.marketCapMin;
+      if (filters.marketCapMax !== '') params.marketCapMax = filters.marketCapMax;
+      if (filters.completeness !== '') params.completeness = filters.completeness;
 
       const res = await getLatest(params);
-      const rows = res?.items || res?.data || res || [];
-      const count = res?.total ?? rows.length ?? 0;
+      const rows = res?.items || [];
+      const count = typeof res?.total === 'number' ? res.total : rows.length;
       setData(Array.isArray(rows) ? rows : []);
-      setTotal(typeof count === 'number' ? count : 0);
+      setTotal(count);
     } catch (e) {
       setError(e?.message || 'Failed to load data');
       setData([]);
@@ -117,6 +118,7 @@ export default function useRankingData() {
       const res = await postRun(formulaMode, { filters });
       const rid = res?.run_id || res?.id;
       setRunId(rid || null);
+      // Keep latest server-provided status shape
       setRunStatus({ ...(res || {}), status: 'running', progress: 0 });
       if (rid) startPollingStatus(rid);
       else {
